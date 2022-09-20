@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from .models import Departament, Role, Employee
+from .models import Departament, Role, Employee, Salary
 
 
 @admin.register(Departament)
@@ -27,6 +27,8 @@ class EmployeeAdmin(admin.ModelAdmin):
         'birth_day',
         'hire_date',
         'is_active',
+        'phone',
+        'salary_per_day',
         'get_image']
     list_display_links = ['full_name']
     # list_editable = ['is_active']
@@ -36,13 +38,13 @@ class EmployeeAdmin(admin.ModelAdmin):
             "fields": (('full_name',),)
         }),
         ("Shaxsiy ma'lumotlar", {
-            "fields": (('passport', 'birth_day'), ('gender', 'address'),)
+            "fields": (('passport', 'birth_day'), ('gender', 'phone', 'address'),)
         }),
         ("Holat", {
             "fields": (('hire_date',), ('is_active',),)
         }),
         ("Bo'lim", {
-            "fields": (('dept', 'em_role'),)
+            "fields": (('dept', 'em_role'), ('salary_per_day',))
         }),
         ("Sanalar", {
             "fields": (('created_at',), ('updated_at',),)
@@ -58,3 +60,8 @@ class EmployeeAdmin(admin.ModelAdmin):
         return mark_safe(f'<img src={obj.image.url} width="30" height="30">')
 
     get_image.short_description = "Rasm"
+
+
+@admin.register(Salary)
+class SalaryAdmin(admin.ModelAdmin):
+    list_display = ['emp', 'working_day', 'salary_date', 'salary_month', 'emp_spd']
