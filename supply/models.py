@@ -61,7 +61,7 @@ class SupplyItem(BaseEnty):
         super(SupplyItem, self).save(*args, **kwargs)
 
         # Stock part
-        stock = Stock.objects.filter(product=self.sup_product).order_by('id').first()
+        stock = Stock.objects.filter(product=self.sup_product).order_by('-id').first()
         if stock:
             totalBal = stock.total_bal_qty + self.quantity
         else:
@@ -82,12 +82,88 @@ class SupplyItem(BaseEnty):
         ordering = ['-id']
 
 
+class Customer(BaseEnty):
+    name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=20, unique=True)
+    address = models.CharField(max_length=200)
+    email = models.EmailField(max_length=254, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Xaridor'
+        verbose_name_plural = 'Xaridorlar'
+
+
+class SaleBill(BaseEnty):
+    bill_no = models.AutoField(primary_key=True)
+    time = models.DateTimeField(auto_now=True)
+    sale_customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='sale_customer',
+                                      default=1)
+
+    def __str__(self):
+        return "Chek №: " + str(self.bill_no)
+
+    def get_items_list(self):
+        return SaleItem.objects.filter(bill_no=self)
+
+    def get_total_price(self):
+        sale_items = SaleItem.objects.filter(bill_no=self)
+        total = 0
+        for item in sale_items:
+            total += item.total_price
+        return total
+
+    get_total_price.short_description = 'Jami chiqim summasi'
+
+    class Meta:
+        verbose_name = 'Savdo'
+        verbose_name_plural = 'Savdolar'
+        ordering = ['-bill_no']
+
+
+class SaleItem(BaseEnty):
+    bill_no = models.ForeignKey(SaleBill, on_delete=models.CASCADE)
+    sale_product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='sale_product')
+    quantity = models.IntegerField(default=1)
+    per_price = models.IntegerField(default=1)
+    total_price = models.IntegerField(editable=False, default=0)
+
+    def __str__(self):
+        return "Chek №: " + str(self.bill_no.bill_no) + " | Maxsulot : " + self.sale_product.title
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.per_price
+        super(SaleItem, self).save(*args, **kwargs)
+
+        # Stock part
+        stock = Stock.objects.filter(product=self.sale_product).order_by('-id').first()
+        if stock:
+            totalBal = stock.total_bal_qty - self.quantity
+
+        Stock.objects.create(
+            product=self.sale_product,
+            supply=None,
+            sale=self,
+            sup_qty=None,
+            sale_qty=self.quantity,
+            total_bal_qty=totalBal
+        )
+
+    class Meta:
+        verbose_name = 'Savdo maxsuloti'
+        verbose_name_plural = 'Savdo maxsulotlari'
+        ordering = ['-id']
+
+
 class Stock(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     supply = models.ForeignKey(SupplyItem, on_delete=models.CASCADE, default=0, null=True)
-    sale = models.BooleanField(default=True, null=True)
+    sale = models.ForeignKey(SaleItem, on_delete=models.CASCADE, default=0, null=True)
     sup_qty = models.FloatField(default=0, null=True)
-    sale_qty = models.BooleanField(default=True, null=True)
+    sale_qty = models.FloatField(default=0, null=True)
     total_bal_qty = models.FloatField()
 
     class Meta:
